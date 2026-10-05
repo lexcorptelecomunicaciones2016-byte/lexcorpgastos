@@ -1,0 +1,9 @@
+- Usuarios de login: ADMON, Miguel Arias y Fredy Villamil.
+- Santiago Villamil queda sin usuario; sí puede recibir préstamos y pagos de nómina.
+- Préstamos habilitados para Miguel Arias, Fredy Villamil y Santiago Villamil.
+- Nuevo módulo Pago de Nómina con Nequi, transferencia bancaria, Bre-B, efectivo u otro.
+- Solo ADMON puede editar o eliminar gastos, préstamos y nómina.
+- Tiempo real en Firebase para PC y celular.
+- Exportación Excel con Resumen, Gastos, Préstamos y Nómina.
+- Integración opcional con Google Drive de lexcorptelecomunicaciones2016@gmail.com mediante Apps Script.
+- Respaldo Drive incluye archivos, JSON de auditoría y hoja maestra consolidada.

@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function usuarioExiste() {
+      return request.auth != null && exists(/databases/$(db)/documents/usuarios/$(request.auth.uid));
+    }
+    function activo() {
+      return usuarioExiste() && get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.activo == true;
+    }
+    function admin() {
+      return activo() && get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+    function soloLectura() {
+      return activo() && (
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.usuario == 'FREDY' ||
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.usuario == 'MIGUEL'
+      );
+    }
+    match /usuarios/{uid} {
+      allow read: if activo() && (request.auth.uid == uid || admin());
+      allow create, update, delete: if admin();
+    }
+    match /finanzas/GASTOS/gastos/{documento} {
+      allow read: if admin() || soloLectura(); allow create, update, delete: if admin();
+    }
+    match /finanzas/GASTOS/ingresos/{documento} {
+      allow read: if admin() || soloLectura(); allow create, update, delete: if admin();
+    }
+    match /finanzas/GASTOS/prestamos/{documento} {
+      allow read: if admin() || soloLectura(); allow create, update, delete: if admin();
+    }
+    match /finanzas/GASTOS/deudas_tecnicos/{documento} {
+      allow read: if admin() || soloLectura(); allow create, update, delete: if admin();
+    }
+    match /finanzas/GASTOS/nomina/{documento} {
+      allow read: if admin() || soloLectura(); allow create, update, delete: if admin();
+    }
+    match /config/gastosDrive {
+      allow read: if admin(); allow create, update, delete: if admin();
+    }
+  }
+}

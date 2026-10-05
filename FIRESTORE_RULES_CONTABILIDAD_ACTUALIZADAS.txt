@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function usuarioExiste() {
+      return request.auth != null &&
+        exists(/databases/$(db)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function activo() {
+      return usuarioExiste() &&
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.activo == true;
+    }
+
+    function admin() {
+      return activo() &&
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    function consultaTotal() {
+      return activo() &&
+        (
+          get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.usuario == 'FREDY' ||
+          get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.usuario == 'MIGUEL'
+        );
+    }
+
+    // Usuarios: cada usuario puede leer su perfil; ADMON administra.
+    match /usuarios/{uid} {
+      allow read: if activo() && (request.auth.uid == uid || admin());
+      allow create, update, delete: if admin();
+    }
+
+    // Gastos.
+    match /finanzas/GASTOS/gastos/{documento} {
+      allow read: if admin() || consultaTotal();
+      allow create, update, delete: if admin();
+    }
+
+    // Entradas de clientes.
+    match /finanzas/GASTOS/ingresos/{documento} {
+      allow read: if admin() || consultaTotal();
+      allow create, update, delete: if admin();
+    }
+
+    // Préstamos personales entregados por LEXCORP.
+    match /finanzas/GASTOS/prestamos/{documento} {
+      allow read: if admin() || consultaTotal();
+      allow create, update, delete: if admin();
+    }
+
+    // Cuentas por pagar a técnicos: dinero que el técnico adelantó con recursos propios.
+    match /finanzas/GASTOS/deudas_tecnicos/{documento} {
+      allow read: if admin() || consultaTotal();
+      allow create, update, delete: if admin();
+    }
+
+    // Nómina.
+    match /finanzas/GASTOS/nomina/{documento} {
+      allow read: if admin() || consultaTotal();
+      allow create, update, delete: if admin();
+    }
+
+    // Configuración de respaldo Drive.
+    match /config/gastosDrive {
+      allow read, create, update, delete: if admin();
+    }
+  }
+}
