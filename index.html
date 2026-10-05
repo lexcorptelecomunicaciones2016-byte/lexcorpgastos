@@ -266,10 +266,22 @@ function routeProject(){
   if(tab==='dashtenjo') return 'FTTH Tenjo';
   return 'ALL';
 }
-function filterProject(a, project){return project==='ALL'?a:a.filter(x=>x.proyecto===project)}
+function normalizeProjectName(v){
+  const t=String(v||'').trim().toLowerCase();
+  if(t==='ftth tenjo'||t.includes('tenjo')||t.includes('churuguaco')||t.includes('banco de la república')||t.includes('banco de la republica')||t.includes('juaica')) return 'FTTH Tenjo';
+  if(t==='proyecto ftth madrid'||t.includes('madrid')||t.includes('fontana')) return 'Proyecto FTTH Madrid';
+  return String(v||'').trim();
+}
+function filterProject(a, project){
+  if(project==='ALL') return a;
+  return a.filter(x=>normalizeProjectName(x.proyecto)===project);
+}
 function projectLabel(project){return project==='ALL'?'Consolidado LEXCORP':project}
-function projectSelect(project){return `<section class="card"><div class="bar"></div><div class="row"><div><label>Vista contable por proyecto</label><select id="projectView"><option value="ALL" ${project==='ALL'?'selected':''}>Consolidado LEXCORP</option><option value="Proyecto FTTH Madrid" ${project==='Proyecto FTTH Madrid'?'selected':''}>Proyecto FTTH Madrid</option><option value="FTTH Tenjo" ${project==='FTTH Tenjo'?'selected':''}>FTTH Tenjo</option></select></div><div><label>Separación contable activa</label><div class="readonly">${esc(projectLabel(project))}</div><p class="sub" style="margin-bottom:0">Cada Dashboard consulta exclusivamente su proyecto. No comparte cifras ni movimientos con el otro proyecto.</p></div></div></section>`}
-function bindProjectSelect(){const el=$('#projectView');if(el)el.onchange=()=>{tab=el.value==='Proyecto FTTH Madrid'?'dashmadrid':el.value==='FTTH Tenjo'?'dashtenjo':'dashall';render()}}
+function projectSelect(project){
+  const label=projectLabel(project);
+  return `<section class="card"><div class="bar"></div><div class="readonly">V17 · Vista bloqueada: ${esc(label)}</div><p class="sub" style="margin-bottom:0">Esta pantalla no permite cambiar de proyecto desde un selector. Use únicamente los botones superiores Dashboard Madrid o Dashboard FTTH Tenjo.</p></section>`
+}
+function bindProjectSelect(){}
 
 function archivosExcel(){const files=[
 {project:'Proyecto FTTH Madrid',type:'Archivo original',name:'Gastos Fontana III · Original',desc:'Excel original revalidado y usado como fuente maestra del Dashboard Madrid.',href:'archivos/Gastos_Fontana_III_Original.xlsx',size:'13 KB'},
@@ -297,6 +309,10 @@ function render(){
 
 function dashProject(project){
   const pG=filterProject(G,project),pI=filterProject(I,project),pN=filterProject(N,project),pL=filterProject(L,project),pD=filterProject(D,project);
+  if(project!=='ALL'){
+    const wrong=[...pG,...pI,...pN,...pL,...pD].filter(x=>normalizeProjectName(x.proyecto)!==project);
+    if(wrong.length) console.error('V17: se detectaron movimientos cruzados y fueron excluidos',wrong);
+  }
   const ti=pI.reduce((s,x)=>s+(+x.valor||0),0);
   const tg=pG.filter(x=>x.estado!=='Rechazado').reduce((s,x)=>s+(+x.valor||0),0);
   const tn=pN.reduce((s,x)=>s+(+x.total||0),0);
@@ -311,8 +327,8 @@ function dashProject(project){
   const meta=project==='FTTH Tenjo'?PROJECT_META['FTTH Tenjo']:null;
   const contract=meta?`<section class="card c3"><div class="bar"></div><div class="sub">Valor contractual FTTH Tenjo</div><div class="kpi money">${money(meta.valorContratado)}</div><div class="sub">4 frentes contractuales</div></section><section class="card c3"><div class="bar"></div><div class="sub">Contrato vs entradas recibidas</div><div class="kpi money">${money(meta.valorContratado-ti)}</div><div class="sub">Saldo según valor contractual cargado</div></section>`:'';
   const title=project==='ALL'?'Dashboard · Consolidado LEXCORP':project==='Proyecto FTTH Madrid'?'Dashboard · Proyecto FTTH Madrid':'Dashboard · FTTH Tenjo';
-  const badge=project==='ALL'?'TODOS LOS PROYECTOS':project==='Proyecto FTTH Madrid'?'SOLO MADRID':'SOLO FTTH TENJO';
-  $('#app').innerHTML=`<div class="grid"><section class="card"><div class="bar"></div><h2>${title}</h2><p class="sub">${project==='ALL'?'Consolidado general de LEXCORP. Los dashboards Madrid y Tenjo permanecen totalmente independientes.':'Vista exclusiva de '+esc(label)+'. Ningún movimiento del otro proyecto se incluye en estas cifras.'}</p><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span class="projtag">V16 · SEPARACIÓN ESTRICTA</span><span class="readonly">${badge}</span></div></section>${projectSelect(project)}${accessNote}<section class="card c3"><div class="bar"></div><div class="sub">Entradas acumuladas · ${esc(label)}</div><div class="kpi money">${money(ti)}</div><div class="sub">${pI.length} movimientos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Gastos operativos</div><div class="kpi money">${money(tg)}</div><div class="sub">${pG.length} registros</div></section><section class="card c3"><div class="bar"></div><div class="sub">Nómina / anticipos</div><div class="kpi money">${money(tn)}</div><div class="sub">${pN.length} pagos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Saldo de caja</div><div class="kpi money">${money(net)}</div><div class="sub">Entradas − gastos − nómina − reembolsos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Cuentas por pagar</div><div class="kpi money">${money(td)}</div><div class="sub">Saldo pendiente de ${esc(label)}</div></section><section class="card c3"><div class="bar"></div><div class="sub">Préstamos pendientes</div><div class="kpi money">${money(tp)}</div><div class="sub">Control exclusivo del proyecto</div></section>${miguelCard}${contract}<section class="card c6"><h3>Últimas entradas · ${esc(label)}</h3>${iTable(pI.slice(0,8),false)}</section><section class="card c6"><h3>Últimos gastos · ${esc(label)}</h3>${gTable(pG.slice(0,8),false)}</section><section class="card c6"><h3>Nómina / anticipos · ${esc(label)}</h3>${nTable(pN.slice(0,8),false)}</section><section class="card c6"><h3>Deudas / cuentas por pagar · ${esc(label)}</h3>${dTable(pD.slice(0,8),false)}</section></div>`;
+  const badge=project==='ALL'?'CONSOLIDADO GENERAL':project==='Proyecto FTTH Madrid'?'SOLO MADRID · TENJO EXCLUIDO':'SOLO FTTH TENJO · MADRID EXCLUIDO';
+  $('#app').innerHTML=`<div class="grid"><section class="card"><div class="bar"></div><h2>${title}</h2><p class="sub">${project==='ALL'?'Consolidado general de LEXCORP. Los dashboards Madrid y Tenjo permanecen totalmente independientes.':'Vista exclusiva de '+esc(label)+'. Ningún movimiento del otro proyecto se incluye en estas cifras.'}</p><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><span class="projtag">V17 · PROYECTOS AISLADOS</span><span class="readonly">${badge}</span></div></section>${projectSelect(project)}${accessNote}<section class="card c3"><div class="bar"></div><div class="sub">Entradas acumuladas · ${esc(label)}</div><div class="kpi money">${money(ti)}</div><div class="sub">${pI.length} movimientos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Gastos operativos</div><div class="kpi money">${money(tg)}</div><div class="sub">${pG.length} registros</div></section><section class="card c3"><div class="bar"></div><div class="sub">Nómina / anticipos</div><div class="kpi money">${money(tn)}</div><div class="sub">${pN.length} pagos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Saldo de caja</div><div class="kpi money">${money(net)}</div><div class="sub">Entradas − gastos − nómina − reembolsos</div></section><section class="card c3"><div class="bar"></div><div class="sub">Cuentas por pagar</div><div class="kpi money">${money(td)}</div><div class="sub">Saldo pendiente de ${esc(label)}</div></section><section class="card c3"><div class="bar"></div><div class="sub">Préstamos pendientes</div><div class="kpi money">${money(tp)}</div><div class="sub">Control exclusivo del proyecto</div></section>${miguelCard}${contract}<section class="card c6"><h3>Últimas entradas · ${esc(label)}</h3>${iTable(pI.slice(0,8),false)}</section><section class="card c6"><h3>Últimos gastos · ${esc(label)}</h3>${gTable(pG.slice(0,8),false)}</section><section class="card c6"><h3>Nómina / anticipos · ${esc(label)}</h3>${nTable(pN.slice(0,8),false)}</section><section class="card c6"><h3>Deudas / cuentas por pagar · ${esc(label)}</h3>${dTable(pD.slice(0,8),false)}</section></div>`;
   bindProjectSelect();wireTables();
 }
 
